@@ -1,6 +1,15 @@
 import { AddRemoveArgs, Data, UndoableOperation } from "../data";
 import { createReducer, on, Action } from "@ngrx/store";
 import * as DataActions from "./data-actions";
+import { Subject } from "rxjs";
+
+const msgSubject$ = new Subject<string>();
+const message$ = msgSubject$.asObservable();
+export function getMessage$() {
+  return message$;
+}
+
+getMessage$().subscribe(msg => console.log(msg));
 
 export interface State {
   data: Data;
@@ -44,6 +53,7 @@ export function reducer(state: State | undefined, action: Action) {
 
 function doAdd(state: State, props: AddRemoveArgs): State {
   console.log("Add called with", state, props);
+  msgSubject$.next("Adding...");
   const ret = applyDataOp(
     state.data,
     props,
@@ -63,6 +73,7 @@ function doAdd(state: State, props: AddRemoveArgs): State {
 
 function doRemove(state: State, props: AddRemoveArgs): State {
   console.log("Remove called with", state, props);
+  msgSubject$.next("Removing...");
   const ret = applyDataOp(state.data, props, `newdata.${props.path}.pop()`);
 
   let newUndoable = [...state.undoable];
@@ -85,7 +96,6 @@ function applyDataOp(
   expr: string
 ): { newdata: Data; props: AddRemoveArgs } {
   let newdata = JSON.parse(JSON.stringify(data));
-  console.log(newdata);
   const retval = eval(expr);
   return { newdata: newdata, props: { path: props.path, data: retval } };
 }
@@ -94,7 +104,7 @@ function adjustUndoState(
   undoable: UndoableOperation<any>[],
   op: UndoableOperation<any>
 ): UndoableOperation<any>[] {
-  const newUndoable = [...undoable];  
+  const newUndoable = [...undoable];
   newUndoable.push(op);
   return newUndoable;
 }
@@ -109,14 +119,14 @@ function doUndo(state: State): State {
     newdata = unDoOrReDoSingle(toUndo, newdata);
     newRedoable.push(toUndo);
   } else {
-    console.log("Nothing to undo");
+    msgSubject$.next("Nothing to undo");
   }
   return { data: newdata, undoable: newUndoable, undone: newRedoable };
 }
 
-function doRedo(state: State): State {  
-  if(state.undone.length<=0) {
-    console.log("Nothing to redo");
+function doRedo(state: State): State {
+  if (state.undone.length <= 0) {
+    msgSubject$.next("Nothing to redo");
     return { ...state };
   }
   let newdata = JSON.parse(JSON.stringify(state.data));
@@ -124,25 +134,31 @@ function doRedo(state: State): State {
   const newUndoable = [...state.undoable];
   const toReDo = newRedoable.pop();
   newUndoable.push(toReDo);
-  newdata = unDoOrReDoSingle(toReDo,newdata,false);
-  
-  return { data: newdata, undoable: newUndoable, undone: newRedoable};
+  newdata = unDoOrReDoSingle(toReDo, newdata, false);
+
+  return { data: newdata, undoable: newUndoable, undone: newRedoable };
 }
 
 function unDoOrReDoSingle(
   toUndo: UndoableOperation<any>,
   data: Data,
-  undo=true
+  undo = true
 ) {
-  console.log(`${undo?'UnDoing':'ReDoing'}`, toUndo);
-  let ret: { newdata: Data; props: AddRemoveArgs };  
-  if ((toUndo.operation === "add" && undo) || (toUndo.operation==='remove') && !undo ) {
+  msgSubject$.next(`${undo ? "UnDoing" : "ReDoing"}: ${toUndo.operation}`);
+  let ret: { newdata: Data; props: AddRemoveArgs };
+  if (
+    (toUndo.operation === "add" && undo) ||
+    (toUndo.operation === "remove" && !undo)
+  ) {
     ret = applyDataOp(
       data,
       { path: toUndo.props.path, data: toUndo.props.oldVal },
       `newdata.${toUndo.props.path}.pop()`
     );
-  } else if ((toUndo.operation === "remove" && undo) || (toUndo.operation==='add' && !undo)) {
+  } else if (
+    (toUndo.operation === "remove" && undo) ||
+    (toUndo.operation === "add" && !undo)
+  ) {
     ret = applyDataOp(
       data,
       { path: toUndo.props.path, data: toUndo.props.oldVal },

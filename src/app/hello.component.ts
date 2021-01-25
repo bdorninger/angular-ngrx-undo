@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { Store } from "@ngrx/store";
-import { State } from "./datastore/data-reducers";
+import { getMessage$, State } from "./datastore/data-reducers";
 import * as DataActions from "./datastore/data-actions";
 import { Data } from "./data";
 import {
@@ -24,13 +24,22 @@ import { Observable } from "rxjs";
 export class HelloComponent implements OnInit {
   @Input() name: string;
 
+  private msg = "Nothing yet....";
+
   private _data: Data = {
     address: "n/a",
     desc: "not initialized",
     children:[]
   };
 
-  constructor(private store: Store<State>) {}
+  constructor(private store: Store<State>) {
+    getMessage$().subscribe(msg => this.msg = msg);
+  }
+
+
+  public getLastMessage(): string {
+    return this.msg;
+  }
 
   public add(): void {
     const postfix = "" + Math.random();
