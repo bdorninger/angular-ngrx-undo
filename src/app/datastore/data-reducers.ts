@@ -53,7 +53,8 @@ function doAdd(state: State, props: AddRemoveArgs): State {
   const newUndoable = adjustUndoState(state.undoable, {
     operation: "add",
     props: {
-      path: ret.props.path
+      path: ret.props.path,
+      oldVal: props.data
     }
   });
 
@@ -93,8 +94,7 @@ function adjustUndoState(
   undoable: UndoableOperation<any>[],
   op: UndoableOperation<any>
 ): UndoableOperation<any>[] {
-  const newUndoable = [...undoable];
-  const newRedoable = [];
+  const newUndoable = [...undoable];  
   newUndoable.push(op);
   return newUndoable;
 }
@@ -106,37 +106,49 @@ function doUndo(state: State): State {
 
   if (state.undoable.length > 0) {
     const toUndo = newUndoable.pop();
-    newdata = undoSingle(toUndo, newdata, newRedoable);
+    newdata = unDoOrReDoSingle(toUndo, newdata);
+    newRedoable.push(toUndo);
   } else {
     console.log("Nothing to undo");
   }
   return { data: newdata, undoable: newUndoable, undone: newRedoable };
 }
 
-function doRedo(state: State): State {
-  console.log("Redo called with", state);
-  return { ...state };
+function doRedo(state: State): State {  
+  if(state.undone.length<=0) {
+    console.log("Nothing to redo");
+    return { ...state };
+  }
+  let newdata = JSON.parse(JSON.stringify(state.data));
+  const newRedoable = [...state.undone];
+  const newUndoable = [...state.undoable];
+  const toReDo = newRedoable.pop();
+  newUndoable.push(toReDo);
+  newdata = unDoOrReDoSingle(toReDo,newdata,false);
+  
+  return { data: newdata, undoable: newUndoable, undone: newRedoable};
 }
 
-function undoSingle(
+function unDoOrReDoSingle(
   toUndo: UndoableOperation<any>,
   data: Data,
-  redoable: UndoableOperation<any>[]
+  undo=true
 ) {
-  console.log("Undoing", toUndo);
-  let ret: { newdata: Data; props: AddRemoveArgs };
-  if (toUndo.operation === "add") {
+  console.log(`${undo?'UnDoing':'ReDoing'}`, toUndo);
+  let ret: { newdata: Data; props: AddRemoveArgs };  
+  if ((toUndo.operation === "add" && undo) || (toUndo.operation==='remove') && !undo ) {
     ret = applyDataOp(
       data,
-      { path: toUndo.props.path, data: undefined },
+      { path: toUndo.props.path, data: toUndo.props.oldVal },
       `newdata.${toUndo.props.path}.pop()`
     );
-  } else if (toUndo.operation === "remove") {
+  } else if ((toUndo.operation === "remove" && undo) || (toUndo.operation==='add' && !undo)) {
     ret = applyDataOp(
       data,
       { path: toUndo.props.path, data: toUndo.props.oldVal },
       `newdata.${toUndo.props.path}.push(props.data)`
     );
+    ret.props.data = toUndo.props.oldVal;
   }
   // adjust redo
   return ret.newdata;
