@@ -1,7 +1,7 @@
 export interface Data {
   address: string;
   desc?: string;
-  children?: Data[];
+  children: Data[];
 }
 
 export type Operation = "add" | "remove" | "change";

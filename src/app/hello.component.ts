@@ -3,7 +3,11 @@ import { Store } from "@ngrx/store";
 import { State } from "./datastore/data-reducers";
 import * as DataActions from "./datastore/data-actions";
 import { Data } from "./data";
-import { selectorData,selectorRootAddress, selectorAllAddresses } from "./datastore/data-selectors"
+import {
+  selectorData,
+  selectorRootAddress,
+  selectorAllAddresses
+} from "./datastore/data-selectors";
 import { Observable } from "rxjs";
 
 @Component({
@@ -21,8 +25,9 @@ export class HelloComponent implements OnInit {
   @Input() name: string;
 
   private _data: Data = {
-    address: 'n/a',
-    desc: 'not initialized'
+    address: "n/a",
+    desc: "not initialized",
+    children:[]
   };
 
   constructor(private store: Store<State>) {}
@@ -31,26 +36,31 @@ export class HelloComponent implements OnInit {
     const postfix = "" + Math.random();
     this.store.dispatch(
       DataActions.addAction({
-        path: "myPath" + postfix,
+        path: "children[1].children",
         data: {
-          address: "ns=2;s=muzi" + postfix,
-          desc: "mydescription" + postfix
+          address: "ns=5;s=muzi" + postfix,
+          desc: "mydescription",
+          children:[]
         }
       })
-    );    
+    );
   }
 
   public ngOnInit(): void {
     const data$ = this.store.select(selectorData);
-    
-    
+
     data$.subscribe(data => {
       this._data = data;
     });
-    
   }
 
-  public remove(): void {}
+  public remove(): void {
+    this.store.dispatch(
+      DataActions.removeAction({
+        path: "children[1].children"        
+      })
+    );
+  }
 
   public change(): void {}
 
@@ -63,7 +73,7 @@ export class HelloComponent implements OnInit {
   }
 
   public dataRoot(): string {
-    return JSON.stringify(this._data,null,2);
+    return JSON.stringify(this._data, null, 2);
   }
 
   public dataRootAddress(): Observable<string> {
@@ -71,6 +81,6 @@ export class HelloComponent implements OnInit {
   }
 
   public allAddresses() {
-    return this.store.select(selectorAllAddresses, { desc: 'child3'});
+    return this.store.select(selectorAllAddresses, { desc: "child3" });
   }
 }
